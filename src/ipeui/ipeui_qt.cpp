@@ -30,6 +30,8 @@
 
 #include "ipeui_qt.h"
 
+#include <QDesktopServices>
+#include <QUrl>
 #include <QApplication>
 #include <QCheckBox>
 #include <QCloseEvent>
@@ -887,6 +889,16 @@ static int ipeui_currentDateTime(lua_State * L) {
 
 // --------------------------------------------------------------------
 
+#if defined(WIN32) && !defined(__EMSCRIPTEN__)
+// On Windows, the Lua code expects ipeui.startBrowser to open URLs and files
+static int ipeui_startBrowserQt(lua_State * L) {
+    QString url = QString::fromUtf8(luaL_checklstring(L, 1, nullptr));
+    bool ok = QDesktopServices::openUrl(QUrl::fromUserInput(url));
+    lua_pushboolean(L, ok);
+    return 1;
+}
+#endif
+
 static const struct luaL_Reg ipeui_functions[] = {
     {"Dialog", dialog_constructor},
     {"Menu", menu_constructor},
@@ -895,6 +907,9 @@ static const struct luaL_Reg ipeui_functions[] = {
     {"fileDialog", ipeui_fileDialog},
     {"messageBox", ipeui_messageBox},
     {"currentDateTime", ipeui_currentDateTime},
+#if defined(WIN32) && !defined(__EMSCRIPTEN__)
+    {"startBrowser", ipeui_startBrowserQt},
+#endif
     {nullptr, nullptr}};
 
 // --------------------------------------------------------------------

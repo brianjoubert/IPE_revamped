@@ -72,6 +72,7 @@ shortcuts = {
   edit_as_xml = nil,
   change_width = "Alt+W",
   document_properties = "Ctrl+Shift+P",
+  command_palette = "Ctrl+Shift+K",
   style_sheets = "Ctrl+Shift+S",
   update_style_sheets = "Ctrl+Shift+U",
   mode_select = "S",

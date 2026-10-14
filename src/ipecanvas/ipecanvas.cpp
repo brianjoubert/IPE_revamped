@@ -105,6 +105,8 @@ CanvasBase::CanvasBase() {
     iStyle.thickStep = 4;
     iStyle.paperClip = false;
     iStyle.numberPages = false;
+    iStyle.canvasColor = Color(400, 400, 400);
+    iStyle.paperShadow = false;
 
     iSnap.iSnap = 0;
     iSnap.iGridVisible = false;
@@ -314,6 +316,23 @@ void CanvasBase::drawPaper(cairo_t * cc) {
 			 iStyle.paperColor.iGreen.toDouble(),
 			 iStyle.paperColor.iBlue.toDouble());
     cairo_fill(cc);
+}
+
+// Soft shadow under the paper: a few stacked translucent rectangles,
+// with sizes in screen pixels (independent of zoom).
+void CanvasBase::drawPaperShadow(cairo_t * cc) {
+    const Layout * l = iCascade->findLayout();
+    double x = -l->iOrigin.x, y = -l->iOrigin.y;
+    double w = l->iPaperSize.x, h = l->iPaperSize.y;
+    double px = 1.0 / iZoom;
+    const int steps = 8;
+    for (int i = steps; i >= 1; --i) {
+	double d = i * px * 1.5;
+	double off = 2.0 * px; // shadow falls slightly downwards
+	cairo_rectangle(cc, x - d, y - d - off, w + 2 * d, h + 2 * d);
+	cairo_set_source_rgba(cc, 0.0, 0.0, 0.0, 0.035);
+	cairo_fill(cc);
+    }
 }
 
 void CanvasBase::drawFrame(cairo_t * cc) {
@@ -641,7 +660,9 @@ bool CanvasBase::refreshSurface() {
 	    iSurface = cairo_image_surface_create(CAIRO_FORMAT_RGB24, iBWidth, iBHeight);
 	cairo_t * cc = cairo_create(iSurface);
 	// background
-	cairo_set_source_rgb(cc, 0.4, 0.4, 0.4);
+	cairo_set_source_rgb(cc, iStyle.canvasColor.iRed.toDouble(),
+			     iStyle.canvasColor.iGreen.toDouble(),
+			     iStyle.canvasColor.iBlue.toDouble());
 	cairo_rectangle(cc, 0, 0, iBWidth, iBHeight);
 	cairo_fill(cc);
 
@@ -651,6 +672,7 @@ bool CanvasBase::refreshSurface() {
 	cairo_translate(cc, -iPan.x, -iPan.y);
 
 	if (iPage) {
+	    if (iStyle.paperShadow) drawPaperShadow(cc);
 	    drawPaper(cc);
 	    if (!iStyle.pretty) drawFrame(cc);
 	    if (iSnap.iGridVisible) drawGrid(cc);

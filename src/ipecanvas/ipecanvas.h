@@ -95,6 +95,8 @@ public:
 	int thickStep;
 	bool paperClip;
 	bool numberPages;
+	Color canvasColor; // background around the paper
+	bool paperShadow;  // draw a soft drop shadow under the paper
     };
 
     virtual ~CanvasBase();
@@ -173,6 +175,7 @@ public:
 protected:
     CanvasBase();
     void drawPaper(cairo_t * cc);
+    void drawPaperShadow(cairo_t * cc);
     void drawFrame(cairo_t * cc);
     void drawAxes(cairo_t * cc);
     void drawGrid(cairo_t * cc);

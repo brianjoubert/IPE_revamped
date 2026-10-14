@@ -805,7 +805,9 @@ static int appui_constructor(lua_State * L) {
     int model = luaL_ref(L, LUA_REGISTRYINDEX);
     *ui = createAppUi(L, model);
 
-    CanvasBase::Style style;
+    // start from the canvas' current style, so that settings made by the
+    // user interface (such as the background color of the theme) survive
+    CanvasBase::Style style = (*ui)->canvas()->canvasStyle();
     style.pretty = false;
     style.paperColor = Color(1000, 1000, 1000);
     style.primarySelectionColor = Color(1000, 0, 0);

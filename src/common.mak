@@ -7,7 +7,8 @@
 # Are we compiling for Windows?  For Mac OS X? For webasm?
 ifdef COMSPEC
   WIN32	=  1
-  IPEUI = WIN32
+  # IPEUI=QT selects the Qt frontend on Windows (built with MSYS2)
+  IPEUI ?= WIN32
 else ifdef IPECROSS
   WIN32 = 1
   IPEUI = WIN32
@@ -172,6 +173,26 @@ else
   STRIP_TARGET  = strip $(TARGET)
   IPEDEPS	?= /mingwlibs
 endif
+ifdef IPEMSYS2
+  # --------------- MSYS2 (UCRT64): libraries found with pkg-config ---------------
+  PKG_CONFIG    ?= pkg-config
+  LUA_PACKAGE   ?= lua
+  ZLIB_CFLAGS   := $(shell $(PKG_CONFIG) --cflags zlib)
+  ZLIB_LIBS     := $(shell $(PKG_CONFIG) --libs zlib)
+  FREETYPE_CFLAGS := $(shell $(PKG_CONFIG) --cflags freetype2)
+  FREETYPE_LIBS := $(shell $(PKG_CONFIG) --libs freetype2)
+  CAIRO_CFLAGS  := $(shell $(PKG_CONFIG) --cflags cairo)
+  CAIRO_LIBS    := $(shell $(PKG_CONFIG) --libs cairo)
+  LUA_CFLAGS    := $(shell $(PKG_CONFIG) --cflags $(LUA_PACKAGE))
+  LUA_LIBS      := $(shell $(PKG_CONFIG) --libs $(LUA_PACKAGE))
+  SPIRO_CFLAGS  := $(shell $(PKG_CONFIG) --cflags libspiro)
+  SPIRO_LIBS    := $(shell $(PKG_CONFIG) --libs libspiro)
+  GSL_CFLAGS    := $(shell $(PKG_CONFIG) --cflags gsl)
+  GSL_LIBS      := $(shell $(PKG_CONFIG) --libs gsl)
+  QT_CFLAGS     := $(shell $(PKG_CONFIG) --cflags Qt6Gui Qt6Widgets Qt6Core)
+  QT_LIBS       := $(shell $(PKG_CONFIG) --libs Qt6Gui Qt6Widgets Qt6Core) -lQt6EntryPoint
+  MOC           ?= moc
+else
   ZLIB_CFLAGS   := -I$(IPEDEPS)/include
   ZLIB_LIBS     := -L$(IPEDEPS)/lib -lz
   FREETYPE_CFLAGS := -I$(IPEDEPS)/include/freetype2 \
@@ -185,6 +206,7 @@ endif
   SPIRO_LIBS    := -L$(IPEDEPS)/lib -lspiro
   GSL_CFLAGS	:=
   GSL_LIBS	:= -lgsl -lgslcblas -lm
+endif
 
 else
 ifdef MACOS

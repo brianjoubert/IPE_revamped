@@ -116,10 +116,10 @@ end
 -- and which ones should be displayed on start-up
 -- tools_placement is only used with Qt toolkit
 prefs.tools_placement = {
-  properties = "left",
+  properties = "right",
   bookmarks = "right",
   notes = "right",
-  layers = "left"
+  layers = "right"
 }
 prefs.tools_visible = {
   properties = true,
@@ -165,7 +165,7 @@ prefs.editor_size = { 0, 0 }
 prefs.width_notes_bookmarks = 200
 
 -- Size of main window at startup
-prefs.window_size = { 1160, 720 }
+prefs.window_size = { 1280, 800 }
 
 -- Should Ipe start maximized or even in full screen mode? (Windows and Qt only)
 prefs.start_screen = "normal"

@@ -35,9 +35,11 @@
 #include <cstdlib>
 
 #include "appui_qt.h"
+#include "theme_qt.h"
 #include <QDir>
 #include <QLocale>
 #include <QScreen>
+#include <QStandardPaths>
 
 using namespace ipe;
 using namespace ipelua;
@@ -56,8 +58,22 @@ static void setup_globals(lua_State * L, int width, int height, double devicePix
     lua_setfield(L, -2, "path");
 
     lua_newtable(L); // config table
+#ifdef WIN32
+    // Qt frontend on Windows: the Lua code uses Windows conventions
+    lua_pushliteral(L, "win");
+    lua_setfield(L, -2, "platform");
+    auto winFolder = [L](const char * var, QStandardPaths::StandardLocation loc) {
+	QString s = QDir::toNativeSeparators(QStandardPaths::writableLocation(loc));
+	if (s.isEmpty()) s = "C:";
+	lua_pushstring(L, s.toUtf8().constData());
+	lua_setfield(L, -2, var);
+    };
+    winFolder("desktop", QStandardPaths::DesktopLocation);
+    winFolder("documents", QStandardPaths::DocumentsLocation);
+#else
     lua_pushliteral(L, "unix");
     lua_setfield(L, -2, "platform");
+#endif
     lua_pushliteral(L, "qt");
     lua_setfield(L, -2, "toolkit");
 
@@ -95,6 +111,7 @@ int main(int argc, char * argv[]) {
 
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(true);
+    ipetheme::initialize();
 
     // create table with arguments
     lua_createtable(L, 0, argc - 1);

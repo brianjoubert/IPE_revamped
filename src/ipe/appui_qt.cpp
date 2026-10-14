@@ -32,6 +32,8 @@
 #include "controls_qt.h"
 #include "ipecanvas_qt.h"
 #include "waitdlg_qt.h"
+#include "theme_qt.h"
+#include "commandpalette_qt.h"
 
 #include "ipelua.h"
 
@@ -56,6 +58,11 @@
 #include <QTimer>
 #include <QToolTip>
 #include <QWindow>
+#include <QPainter>
+#include <QProcess>
+#include <QPaintEvent>
+#include <QShortcut>
+#include <QStyleOptionToolButton>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -93,10 +100,10 @@ QIcon AppUi::prefsIcon(String name) {
 	return QIcon(QIpe(png));
     }
 
-    String svgname = svgdir + name + ".svg";
+    bool dark = QGuiApplication::palette().text().color().value() > 128;
+    String svgname = svgdir + name + (dark ? "-dark.svg" : ".svg");
     int pno = ipeIcon(name);
     if (pno >= 0) {
-	bool dark = QGuiApplication::palette().text().color().value() > 128;
 	Document * doc = dark ? ipeIconsDark.get() : ipeIcons.get();
 	Thumbnail thumbs(doc, 22);
 	thumbs.setNoCrop(true);
@@ -117,6 +124,91 @@ QIcon AppUi::prefsColorIcon(Color color) {
     QPixmap pixmap(size, size);
     pixmap.fill(QIpe(color));
     return QIcon(pixmap);
+}
+
+// --------------------------------------------------------------------
+
+// A tool button that shows one tool of a group, with the others in a
+// popup menu (press and hold, or right-click).  A small triangle in the
+// corner indicates that there are more tools.
+class FlyoutButton : public QToolButton {
+public:
+    FlyoutButton(QWidget * parent = nullptr)
+	: QToolButton(parent) {
+	iMenu = new QMenu(this);
+	setMenu(iMenu);
+	setPopupMode(QToolButton::DelayedPopup);
+	setFocusPolicy(Qt::NoFocus);
+	connect(iMenu, &QMenu::triggered, this, [this](QAction * a) { setDefaultAction(a); });
+    }
+    void addTool(QAction * a) {
+	iMenu->addAction(a);
+	if (!defaultAction()) setDefaultAction(a);
+	connect(a, &QAction::toggled, this, [this, a](bool on) {
+	    if (on) setDefaultAction(a);
+	});
+    }
+
+protected:
+    void mousePressEvent(QMouseEvent * ev) override {
+	if (ev->button() == Qt::RightButton) {
+	    showMenu();
+	    return;
+	}
+	QToolButton::mousePressEvent(ev);
+    }
+    void paintEvent(QPaintEvent * ev) override {
+	QToolButton::paintEvent(ev);
+	QPainter p(this);
+	p.setRenderHint(QPainter::Antialiasing);
+	p.setPen(Qt::NoPen);
+	p.setBrush(palette().color(QPalette::WindowText));
+	QPointF br(width() - 3.0, height() - 3.0);
+	QPointF tri[3] = {br, br - QPointF(5, 0), br - QPointF(0, 5)};
+	p.drawPolygon(tri, 3);
+    }
+    // QToolButton hides the menu-indicator space only for InstantPopup
+    QSize sizeHint() const override {
+	QStyleOptionToolButton opt;
+	initStyleOption(&opt);
+	opt.features &= ~QStyleOptionToolButton::HasMenu;
+	QSize sz = opt.iconSize;
+	return style()->sizeFromContents(QStyle::CT_ToolButton, &opt, sz, this);
+    }
+
+private:
+    QMenu * iMenu;
+};
+
+static const char * modeGroup(const char * name) {
+    if (!strncmp(name, "mode_rectangles", 15) || !strcmp(name, "mode_parallelogram"))
+	return "rect";
+    if (!strncmp(name, "mode_arc", 8)) return "arc";
+    if (!strncmp(name, "mode_circle", 11)) return "circle";
+    if (!strcmp(name, "mode_splines") || !strcmp(name, "mode_splinegons")) return "spline";
+    if (!strcmp(name, "mode_stretch") || !strcmp(name, "mode_shear")) return "stretch";
+    if (!strcmp(name, "mode_label") || !strcmp(name, "mode_paragraph")) return "text";
+    return nullptr;
+}
+
+void AppUi::addModeTool(const char * name, QAction * a) {
+    const char * group = modeGroup(name);
+    if (!strcmp(name, "mode_rectangles1")) iObjectTools->addSeparator();
+    if (!group) {
+	iObjectTools->addAction(a);
+	return;
+    }
+    auto it = iFlyouts.find(group);
+    FlyoutButton * b = nullptr;
+    if (it == iFlyouts.end()) {
+	b = new FlyoutButton();
+	b->setIconSize(iObjectTools->iconSize());
+	connect(iObjectTools, &QToolBar::iconSizeChanged, b, &QToolButton::setIconSize);
+	iObjectTools->addWidget(b);
+	iFlyouts[group] = b;
+    } else
+	b = static_cast<FlyoutButton *>(it->second);
+    b->addTool(a);
 }
 
 // --------------------------------------------------------------------
@@ -155,7 +247,7 @@ void AppUi::addItem(QMenu * m, const QString & title, const char * name) {
     m->addAction(a);
     if (m == iMenu[EModeMenu]) {
 	a->setActionGroup(iModeActionGroup);
-	iObjectTools->addAction(a);
+	addModeTool(name, a);
     }
     connect(a, SIGNAL(triggered()), iActionMap, SLOT(map()));
     iActionMap->setMapping(a, name);
@@ -181,8 +273,10 @@ void AppUi::addRootMenu(int id, const char * name) {
 
 // if title and name == 0, add separator (default)
 void AppUi::addItem(int id, const char * title, const char * name) {
-    if (title == nullptr)
+    if (title == nullptr) {
 	iMenu[id]->addSeparator();
+	if (id == EModeMenu) iObjectTools->addSeparator();
+    }
     else
 	addItem(iMenu[id], QString::fromUtf8(title), name);
 }
@@ -246,11 +340,19 @@ AppUi::AppUi(lua_State * L0, int model, Qt::WindowFlags f)
     iCanvas = canvas;
     setCentralWidget(canvas);
 
+    iEditTools = addToolBar("Edit");
     iSnapTools = addToolBar("Snap");
     iVariantTools = addToolBar("Variant");
-    iEditTools = addToolBar("Edit");
-    addToolBarBreak();
-    iObjectTools = addToolBar("Objects");
+    iAppTools = addToolBar("Search and theme");
+    iObjectTools = new QToolBar("Tools", this);
+    iObjectTools->setOrientation(Qt::Vertical);
+    addToolBar(Qt::LeftToolBarArea, iObjectTools);
+    for (QToolBar * tb : {iEditTools, iSnapTools, iVariantTools, iAppTools}) {
+	tb->setIconSize(QSize(20, 20));
+	tb->setAllowedAreas(Qt::TopToolBarArea | Qt::BottomToolBarArea);
+    }
+    iObjectTools->setIconSize(QSize(20, 20));
+    iObjectTools->setAllowedAreas(Qt::LeftToolBarArea | Qt::RightToolBarArea);
 
     set_toolbar_size(iEditTools, iToolbarScale);
     set_toolbar_size(iVariantTools, iToolbarScale);
@@ -343,6 +445,50 @@ AppUi::AppUi(lua_State * L0, int model, Qt::WindowFlags f)
     connect(iShiftKey, SIGNAL(triggered()), SLOT(toolbarModifiersChanged()));
     connect(iAbortButton, SIGNAL(triggered()), SLOT(abortDrawing()));
 
+    // ---- search box (command palette) and theme switch, right-aligned
+    QWidget * spacer = new QWidget();
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    iAppTools->addWidget(spacer);
+    iPaletteButton = new QToolButton();
+    iPaletteButton->setObjectName("PaletteButton");
+    iPaletteButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    iPaletteButton->setIconSize(QSize(14, 14));
+    iPaletteButton->setFocusPolicy(Qt::NoFocus);
+    iAppTools->addWidget(iPaletteButton);
+    iThemeButton = new QToolButton();
+    iThemeButton->setFocusPolicy(Qt::NoFocus);
+    iThemeButton->setPopupMode(QToolButton::InstantPopup);
+    iThemeButton->setToolTip("Theme");
+    iAppTools->addWidget(iThemeButton);
+    iCommandPalette = new CommandPalette(this);
+
+    QMenu * themeMenu = new QMenu("&Theme", this);
+    QActionGroup * themeGroup = new QActionGroup(this);
+    themeGroup->setExclusive(true);
+    const struct {
+	const char * title;
+	ipetheme::Mode mode;
+    } themes[] = {{"Follow system", ipetheme::Mode::System},
+		  {"Light", ipetheme::Mode::Light},
+		  {"Dark", ipetheme::Mode::Dark}};
+    for (auto & t : themes) {
+	QAction * ta = themeMenu->addAction(t.title);
+	ta->setCheckable(true);
+	ta->setChecked(ipetheme::mode() == t.mode);
+	ta->setActionGroup(themeGroup);
+	ipetheme::Mode m = t.mode;
+	connect(ta, &QAction::triggered, this, [m]() { ipetheme::setMode(m); });
+    }
+    iThemeButton->setMenu(themeMenu);
+    iMenu[EZoomMenu]->addSeparator();
+    iMenu[EZoomMenu]->addMenu(themeMenu);
+    addItem(iMenu[EZoomMenu], "Command palette", "command_palette");
+    connect(iPaletteButton, &QToolButton::clicked, this,
+	    [this]() { action("command_palette"); });
+    QAction * pa = findAction("command_palette");
+    iPaletteButton->setToolTip(pa->toolTip());
+    iPaletteButton->setText("Search commands…");
+
     iPropertiesTools = new QDockWidget("Properties", this);
     addDockWidget(getDockSide(L, "properties", Qt::LeftDockWidgetArea), iPropertiesTools);
     iPropertiesTools->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
@@ -363,6 +509,9 @@ AppUi::AppUi(lua_State * L0, int model, Qt::WindowFlags f)
 
     // object names are used for saving toolbar state
     iSnapTools->setObjectName(QLatin1String("SnapTools"));
+    iEditTools->setObjectName(QLatin1String("EditTools"));
+    iVariantTools->setObjectName(QLatin1String("VariantTools"));
+    iAppTools->setObjectName(QLatin1String("AppTools"));
     iObjectTools->setObjectName(QLatin1String("ObjectTools"));
     iPropertiesTools->setObjectName(QLatin1String("PropertiesTools"));
     iLayerTools->setObjectName(QLatin1String("LayerTools"));
@@ -370,10 +519,11 @@ AppUi::AppUi(lua_State * L0, int model, Qt::WindowFlags f)
     iBookmarkTools->setObjectName(QLatin1String("BookmarkTools"));
 
     QWidget * wg = new QFrame();
+    wg->setObjectName("PropertiesPanel");
     QGridLayout * lo = new QGridLayout();
     wg->setLayout(lo);
-    int m = uiscale(2);
-    lo->setSpacing(1);
+    int m = uiscale(8);
+    lo->setSpacing(uiscale(4));
     lo->setContentsMargins(m, m, m, m); // l t r b
     // wg->setMaximumWidth(150);
     lo->setSizeConstraint(QLayout::SetFixedSize);
@@ -411,6 +561,7 @@ AppUi::AppUi(lua_State * L0, int model, Qt::WindowFlags f)
 	    iButton[i]->setIconSize(adapt_size(iButton[i]->iconSize(), iUiScale));
 	}
 	iSelector[i] = new QComboBox();
+	iSelector[i]->setMinimumWidth(uiscale(150));
 	if (i == EUiOpacity)
 	    lo->addWidget(iSelector[i], i + 1, 0, 1, 2);
 	else
@@ -453,6 +604,7 @@ AppUi::AppUi(lua_State * L0, int model, Qt::WindowFlags f)
     iPropertiesTools->setWidget(wg);
 
     iModeIndicator = new QLabel();
+    iModeName = "mode_select";
     iModeIndicator->setPixmap(prefsPixmap("mode_select"));
     lo->addWidget(iModeIndicator, 4, 0);
 
@@ -530,6 +682,48 @@ AppUi::AppUi(lua_State * L0, int model, Qt::WindowFlags f)
     statusBar()->addPermanentWidget(iResolution, 0);
 
     iCanvas->setObserver(this);
+    applyTheme();
+}
+
+// Called on construction and whenever the application palette changes
+void AppUi::applyTheme() {
+    const ipetheme::Colors & c = ipetheme::colors();
+    for (auto & [name, a] : iActions) a->setIcon(prefsIcon(name));
+    iShiftKey->setIcon(prefsIcon("shift_key"));
+    iAbortButton->setIcon(prefsIcon("stop"));
+    iButton[EUiPen]->setIcon(prefsIcon("pen"));
+    iButton[EUiTextSize]->setIcon(prefsIcon("mode_label"));
+    iButton[EUiSymbolSize]->setIcon(prefsIcon("mode_marks"));
+    iPaletteButton->setIcon(ipetheme::glyph("search"));
+    switch (ipetheme::mode()) {
+    case ipetheme::Mode::Light: iThemeButton->setIcon(ipetheme::glyph("sun")); break;
+    case ipetheme::Mode::Dark: iThemeButton->setIcon(ipetheme::glyph("moon")); break;
+    default: iThemeButton->setIcon(ipetheme::glyph("system")); break;
+    }
+    for (QAction * ta : iThemeButton->menu()->actions())
+	ta->setChecked(ta->text() == (ipetheme::mode() == ipetheme::Mode::Light ? "Light"
+				      : ipetheme::mode() == ipetheme::Mode::Dark
+					  ? "Dark"
+					  : "Follow system"));
+    if (!iModeName.empty()) iModeIndicator->setPixmap(prefsPixmap(iModeName));
+
+    CanvasBase::Style st = iCanvas->canvasStyle();
+    st.canvasColor = Color(c.canvas.red() * 1000 / 255, c.canvas.green() * 1000 / 255,
+			   c.canvas.blue() * 1000 / 255);
+    st.paperShadow = true;
+    iCanvas->setCanvasStyle(st);
+    iCanvas->update();
+}
+
+void AppUi::changeEvent(QEvent * ev) {
+    if ((ev->type() == QEvent::PaletteChange
+	 || ev->type() == QEvent::ApplicationPaletteChange)
+	&& !iInApplyTheme) {
+	iInApplyTheme = true;
+	applyTheme();
+	iInApplyTheme = false;
+    }
+    QMainWindow::changeEvent(ev);
 }
 
 AppUi::~AppUi() { ipeDebug("AppUi C++ destructor"); }
@@ -721,7 +915,7 @@ void AppUi::setBookmarks(int no, const String * s) {
     iBookmarks->clear();
     for (int i = 0; i < no; ++i) {
 	QListWidgetItem * item = new QListWidgetItem(QIpe(s[i]));
-	if (s[i][0] == ' ') item->setForeground(Qt::blue);
+	if (s[i][0] == ' ') item->setForeground(ipetheme::colors().accent);
 	iBookmarks->addItem(item);
     }
 }
@@ -869,8 +1063,13 @@ void AppUi::action(String name) {
 	setWindowState(windowState() ^ Qt::WindowFullScreen);
     } else if (name == "about") {
 	aboutIpe();
+    } else if (name == "command_palette") {
+	iCommandPalette->open(menuBar());
     } else {
-	if (name.left(5) == "mode_") iModeIndicator->setPixmap(prefsPixmap(name));
+	if (name.left(5) == "mode_") {
+	    iModeName = name;
+	    iModeIndicator->setPixmap(prefsPixmap(name));
+	}
 	luaAction(name);
     }
 }
@@ -950,7 +1149,12 @@ void AppUi::explain(const char * s, int t) {
 }
 
 void AppUi::showWindow(int width, int height, const Color & pathViewColor) {
-    iPathView->setColor(pathViewColor);
+    // The classic yellow does not fit the modern theme; use a neutral "paper"
+    // color unless the user has customized it in prefs.
+    if (pathViewColor == Color(1000, 1000, 500))
+	iPathView->setColor(Color(1000, 1000, 1000));
+    else
+	iPathView->setColor(pathViewColor);
     if (width > 0 && height > 0) resize(width, height);
     show();
 }
@@ -1018,9 +1222,18 @@ Waiter::Waiter(const QString & cmd)
 }
 
 void Waiter::process() {
+#ifdef WIN32
+    // std::system would flash a console window; run the program directly
+    QStringList args = QProcess::splitCommand(iCommand);
+    if (!args.isEmpty()) {
+	QString program = args.takeFirst();
+	QProcess::execute(program, args);
+    }
+#else
     // compiler will complain if we do not look at the return value
     int result = std::system(iCommand.toUtf8());
     (void)result;
+#endif
     emit completed();
 }
 

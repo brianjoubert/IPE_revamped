@@ -53,6 +53,7 @@ using namespace ipe;
 
 class PathView;
 class LayerBox;
+class CommandPalette;
 class QSignalMapper;
 
 // --------------------------------------------------------------------
@@ -130,6 +131,8 @@ private:
     void addItem(QMenu * m, const QString & title, const char * name);
     void addItem(int m, const QString & title, const char * name);
     void addSnap(const char * name);
+    void addModeTool(const char * name, QAction * a);
+    void applyTheme();
     void addEdit(const char * name);
     QIcon prefsIcon(String name);
     QIcon prefsColorIcon(Color color);
@@ -156,6 +159,7 @@ private:
 
 protected:
     void closeEvent(QCloseEvent * ev) override;
+    void changeEvent(QEvent * ev) override;
 
 private:
     PathView * iPathView;
@@ -175,6 +179,13 @@ private:
     QToolBar * iVariantTools;
     QToolBar * iEditTools;
     QToolBar * iObjectTools;
+    QToolBar * iAppTools;
+    QToolButton * iPaletteButton;
+    QToolButton * iThemeButton;
+    CommandPalette * iCommandPalette;
+    std::map<String, QToolButton *> iFlyouts;
+    String iModeName;
+    bool iInApplyTheme = false;
 
     QDockWidget * iPropertiesTools;
     QDockWidget * iLayerTools;
