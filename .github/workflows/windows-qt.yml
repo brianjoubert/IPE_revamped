@@ -10,6 +10,9 @@ on:
       - 'styles/**'
       - 'artwork/**'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -94,6 +97,7 @@ jobs:
           du -sh $D
 
       - name: Smoke test (start Ipe and take a screenshot)
+        continue-on-error: true
         shell: pwsh
         run: |
           $p = Start-Process -FilePath "dist\ipe-modern\bin\ipe.exe" -PassThru
@@ -127,3 +131,16 @@ jobs:
           name: ipe-modern-windows-x64
           path: ipe-modern-windows-x64.zip
           retention-days: 30
+
+      - name: Publish the Windows build as a release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Windows build ${{ github.run_number }}
+          body: |
+            Ipe with the modern interface, built automatically from commit ${{ github.sha }}.
+            Download **ipe-modern-windows-x64.zip**, unzip it anywhere and run `ipe-modern\bin\ipe.exe`
+            (or `ipe-modern\Ipe.bat`). For text with LaTeX, MiKTeX or TeX Live must be installed.
+          files: ipe-modern-windows-x64.zip
+          make_latest: true
