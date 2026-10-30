@@ -42,7 +42,7 @@ mkdir -p build
 step "Compiling"
 cd src
 make -j"$(nproc)" IPEUI=QT IPEMSYS2=1 LUA_PACKAGE="$LUAPKG" MOC="$MOCDIR/moc.exe" \
-     ipe ipetoipe iperender ipescript ipeextract ipe6upgrade
+     ipe ipetoipe iperender ipescript ipeextract ipe6upgrade ipecurl
 cd ..
 
 step "Assembling the application folder"

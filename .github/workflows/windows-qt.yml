@@ -67,7 +67,7 @@ jobs:
           echo "Lua package: $LUAPKG, moc in $MOCDIR"
           cd src
           make -j4 IPEUI=QT IPEMSYS2=1 LUA_PACKAGE=$LUAPKG MOC="$MOCDIR/moc.exe" \
-               ipe ipetoipe iperender ipescript ipeextract ipe6upgrade
+               ipe ipetoipe iperender ipescript ipeextract ipe6upgrade ipecurl
 
       - name: Assemble bundle
         run: |
