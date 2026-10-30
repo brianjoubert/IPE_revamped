@@ -1,0 +1,155 @@
+{
+	"name": "Ipe",
+	"description": "Ipe as a VS Code extension",
+	"version": "7.3.1-beta3",
+	"publisher": "otfried",
+	"author": {
+		"name": "Otfried Cheong",
+		"email": "ipe@otfried.org"
+	},
+	"icon": "images/ipe.png",
+	"extensionKind": [
+		"ui",
+		"workspace"
+	],
+	"engines": {
+		"vscode": "^1.130.0"
+	},
+	"categories": [
+		"Visualization"
+	],
+	"repository": {
+		"url": "https://github.com/otfried/ipe.git"
+	},
+	"capabilities": {
+		"untrustedWorkspaces": {
+			"supported": true
+		}
+	},
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "ipe.keybinding",
+				"title": "Ipe Keybinding"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "ipe.keybinding",
+				"key": "ctrl+e",
+				"mac": "cmd+e",
+				"when": "activeCustomEditorId == ipe || activeCustomEditorId == ipe.pdf",
+				"args": {
+					"key": "Ctrl+E"
+				}
+			},
+			{
+				"command": "ipe.keybinding",
+				"key": "ctrl+a",
+				"mac": "cmd+a",
+				"when": "activeCustomEditorId == ipe || activeCustomEditorId == ipe.pdf",
+				"args": {
+					"key": "Ctrl+A"
+				}
+			},
+			{
+				"command": "ipe.keybinding",
+				"key": "ctrl+p",
+				"mac": "cmd+p",
+				"when": "activeCustomEditorId == ipe || activeCustomEditorId == ipe.pdf",
+				"args": {
+					"key": "Ctrl+P"
+				}
+			},
+			{
+				"command": "ipe.keybinding",
+				"key": "shift+ctrl+s",
+				"mac": "shift+cmd+s",
+				"when": "activeCustomEditorId == ipe || activeCustomEditorId == ipe.pdf",
+				"args": {
+					"key": "Shift+Ctrl+S"
+				}
+			},
+			{
+				"command": "ipe.keybinding",
+				"key": "F1",
+				"when": "activeCustomEditorId == ipe || activeCustomEditorId == ipe.pdf",
+				"args": {
+					"key": "F1"
+				}
+			},
+			{
+				"command": "ipe.keybinding",
+				"key": "F5",
+				"when": "activeCustomEditorId == ipe || activeCustomEditorId == ipe.pdf",
+				"args": {
+					"key": "F5"
+				}
+			},
+			{
+				"command": "ipe.keybinding",
+				"key": "Shift+Ctrl+O",
+				"mac": "Shift+Cmd+O",
+				"when": "activeCustomEditorId == ipe || activeCustomEditorId == ipe.pdf",
+				"args": {
+					"key": "Shift+Ctrl+O"
+				}
+			},
+			{
+				"command": "ipe.keybinding",
+				"key": "Shift+Ctrl+X",
+				"mac": "Shift+Cmd+X",
+				"when": "activeCustomEditorId == ipe || activeCustomEditorId == ipe.pdf",
+				"args": {
+					"key": "Shift+Ctrl+X"
+				}
+			}
+		],
+		"customEditors": [
+			{
+				"viewType": "ipe",
+				"displayName": "Ipe",
+				"selector": [
+					{
+						"filenamePattern": "*.ipe"
+					}
+				],
+				"priority": "default"
+			},
+			{
+				"viewType": "ipe.pdf",
+				"displayName": "Ipe",
+				"selector": [
+					{
+						"filenamePattern": "*.pdf"
+					}
+				],
+				"priority": "option"
+			}
+		]
+	},
+	"scripts": {
+		"package": "vsce package --skip-license --no-dependencies",
+		"vscode:prepublish": "pnpm run compile",
+		"compile": "bash mkapp.bash && tsc -p ./ && tsc -p webview --noEmit && node esbuild.js --production",
+		"watch": "tsc -w -p ./",
+		"watch:webview": "node esbuild.js --watch",
+		"check": "bash mkapp.bash && tsc -p ./ --noEmit && tsc -p webview --noEmit",
+		"format": "biome format --write"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.13.0",
+		"@stylistic/eslint-plugin": "^2.9.0",
+		"@types/node": "^22",
+		"@types/sortablejs": "^1.15.9",
+		"@types/vscode": "^1.130.0",
+		"@types/vscode-webview": "^1.57.0",
+		"@melloware/coloris": "^0.25.0",
+		"sortablejs": "^1.15.7",
+		"esbuild": "^0.28.2",
+		"typescript": "^6.0.2",
+		"@biomejs/biome": "^2.4.6",
+		"@vscode/vsce": "^4.0.0"
+	}
+}

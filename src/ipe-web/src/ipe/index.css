@@ -1,0 +1,283 @@
+* {
+	box-sizing: border-box;
+}
+body {
+	font-family: Roboto, Helvetica, Arial, sans-serif;
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+}
+div#world {
+	width: 100vw;
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background-color: white;
+}
+
+div.toolbars {
+	display: flex;
+	flex-wrap: wrap;
+	column-gap: 20px;
+}
+
+div#middle {
+	display: flex;
+	flex-direction: row;
+	flex-grow: 1;
+	min-height: 0;
+}
+div.dock {
+	display: flex;
+	flex-direction: column;
+	row-gap: 10px;
+}
+div.panel {
+	padding: 4px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+span.panelTitle {
+	font-size: 14px;
+}
+div#layersPanel {
+	flex-grow: 1;
+	min-height: 0;
+}
+div#stage {
+	margin: 4px;
+	flex-grow: 1;
+}
+div#stage.drag-over {
+	outline: 3px solid dodgerblue;
+}
+canvas#bottomCanvas {
+	position: absolute;
+	z-index: 1;
+}
+canvas#topCanvas {
+	position: absolute;
+	z-index: 2;
+}
+div#rightDock {
+	width: 200px;
+	display: none;
+}
+
+div#bottom {
+	height: 30px;
+	display: flex;
+	flex-direction: row;
+	column-gap: 10px;
+}
+div.bottomDisplay {
+	padding: 8px;
+	font-size: 14px;
+}
+div#status {
+	flex-grow: 1;
+}
+
+/* Toolbars */
+div.toolbar {
+	padding: 4px;
+	display: flex;
+	gap: 4px;
+}
+button.toolbutton {
+	width: 30px;
+	height: 30px;
+	border: 1px solid black;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: ivory;
+	user-select: none;
+}
+button.toolbutton > svg {
+	flex-shrink: 0;
+}
+button.toolbutton.selected {
+	background-color: lightskyblue;
+}
+button.toolbutton:hover {
+	background-color: lightgray;
+}
+button.toolbutton:disabled {
+	border: 1px solid lightgray;
+}
+button.draw-toolbutton {
+	pointer-events: all;
+}
+.propertySelector {
+	/* try to make the iPad behave more sanely */
+	user-select: none;
+	border: 1px solid gray;
+	border-radius: 2px;
+}
+/* strip native OS chrome from real <select>s so they match the colorSelector
+   divs, which cannot acquire that chrome (it's not stylable via CSS) */
+select.propertySelector {
+	appearance: none;
+	background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='gray'/></svg>");
+	background-repeat: no-repeat;
+	background-position: right 4px center;
+	background-size: 10px 6px;
+	padding: 0 16px 0 4px;
+	background-color: white;
+}
+
+/* Property panel */
+div.propertiesGrid {
+	display: grid;
+	grid-template-columns: 28px 170px;
+	grid-template-rows: 28px 28px 28px 28px 60px 28px 28px 28px 28px;
+	gap: 2px;
+}
+button#abs-pen {
+	grid-area: 3 / 1 / 5 / 1;
+}
+button#abs-symbolsize {
+	grid-area: 7 / 1 / 9 / 1;
+}
+.propertySelector {
+	justify-self: stretch;
+	align-self: stretch;
+}
+select#opacity {
+	grid-area: 9 / 1 / 10 / 3;
+}
+/* select-like combo for stroke/fill: native <option> elements cannot render
+   colored child markup, so this is a plain div driven by PopupMenu.openColorCombo */
+div.colorSelector {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	column-gap: 4px;
+	padding: 0 4px;
+	background: white;
+	cursor: default;
+}
+div.colorSelector > span.colorSelector-label {
+	flex-grow: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 14px;
+	color: #4e4e4e;
+}
+div.colorSelector > span.colorSelector-arrow {
+	width: 10px;
+	height: 6px;
+	background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='gray'/></svg>");
+	background-repeat: no-repeat;
+}
+span#modeIndicator {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+span#modeIndicator > svg {
+	flex-shrink: 0;
+}
+button.absButton {
+	border: 0.5px gray outset;
+	padding: 0;
+	user-select: none;
+}
+button.absButton:active {
+	border-style: inset;
+}
+canvas#pathView {
+	width: 170px;
+	height: 60px;
+}
+div.page-number {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+}
+
+/* Layer box */
+div#layerbox {
+	display: flex;
+	flex-direction: column;
+	padding: 2px;
+	border: 1px solid black;
+	flex-grow: 1;
+	overflow: auto;
+	min-height: 0;
+}
+div.layer {
+	display: flex;
+	flex-direction: row;
+}
+div.layer.sortable-drag {
+	border: 2px solid red;
+	color: red;
+	font-weight: 600;
+}
+div.layer > span.layer-text {
+	flex-grow: 1;
+	cursor: pointer;
+}
+span.drag-handle {
+	cursor: grab;
+	font-weight: 600;
+}
+div.layer.active {
+	background-color: lightskyblue;
+}
+div.layer.locked {
+	background-color: pink;
+}
+div.layer.snap-always > span.layer-text::after {
+	content: "❎";
+	font-size: 10px;
+}
+div.layer.snap-never > span.layer-text::after {
+	content: "❌";
+	font-size: 10px;
+}
+
+/* Right dock */
+div#bookmarksPanel {
+	flex-grow: 1;
+}
+div#bookmarks {
+	border: 1px solid black;
+	flex-grow: 1;
+}
+div.bookmark.subsection::before {
+	content: "➤ ";
+}
+div#notesPanel {
+	flex-grow: 1;
+}
+textarea#notes {
+	resize: none;
+	flex-grow: 1;
+}
+
+/* Main menu */
+div#mainmenu {
+	display: flex;
+	margin: 4px;
+	height: 24px;
+	width: 100vw;
+	background-color: #f0f0f4;
+}
+button.mainmenu {
+	border: none;
+	width: 80px;
+	text-align: left;
+	background-color: #f0f0f4;
+}
+button.mainmenu:hover {
+	background-color: lightgray;
+}
+
+div.buildInfo {
+	font-size: 11px;
+}

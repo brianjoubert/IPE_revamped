@@ -29,7 +29,3 @@ out/
 
 # local Windows build
 /tools/windows/build-log.txt
-
-# leftovers from the first import attempt
-/ipe-revamped.bundle
-/IMPORT-IPE.bat

@@ -1,0 +1,146 @@
+name: Build Ipe (modern Qt UI) for Windows
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/windows-qt.yml'
+      - 'src/**'
+      - 'scripts/**'
+      - 'styles/**'
+      - 'artwork/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up MSYS2 (UCRT64)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            make
+            zip
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-svg
+            mingw-w64-ucrt-x86_64-cairo
+            mingw-w64-ucrt-x86_64-freetype
+            mingw-w64-ucrt-x86_64-lua
+            mingw-w64-ucrt-x86_64-libspiro
+            mingw-w64-ucrt-x86_64-gsl
+            mingw-w64-ucrt-x86_64-zlib
+            mingw-w64-ucrt-x86_64-imagemagick
+            mingw-w64-ucrt-x86_64-ntldd
+
+      - name: Show toolchain
+        run: |
+          gcc --version | head -1
+          pkg-config --modversion Qt6Widgets cairo freetype2 gsl
+          pkg-config --list-all | grep -i -E "^lua" || true
+          qtpaths6 --query QT_HOST_LIBEXECS || true
+          ls "$(qtpaths6 --query QT_HOST_LIBEXECS)" || true
+
+      - name: Make Windows icon
+        run: |
+          mkdir -p build
+          cd artwork/ipe.iconset
+          magick icon_16x16.png icon_32x32.png icon_64x64.png icon_128x128.png \
+                 icon_256x256.png ../../build/ipe.ico
+
+      - name: Compile
+        run: |
+          LUAPKG=$(pkg-config --list-all | grep -o -E "^lua[0-9.]*" | sort | tail -1)
+          MOCDIR=$(qtpaths6 --query QT_HOST_LIBEXECS)
+          [ -x "$MOCDIR/moc.exe" ] || MOCDIR=$(dirname "$(find /ucrt64 -name moc.exe | head -1)")
+          echo "Lua package: $LUAPKG, moc in $MOCDIR"
+          cd src
+          make -j4 IPEUI=QT IPEMSYS2=1 LUA_PACKAGE=$LUAPKG MOC="$MOCDIR/moc.exe" \
+               ipe ipetoipe iperender ipescript ipeextract ipe6upgrade
+
+      - name: Assemble bundle
+        run: |
+          D=dist/ipe-modern
+          mkdir -p $D/bin $D/lua $D/icons $D/ipelets $D/styles $D/scripts $D/doc
+          cp build/bin/*.exe build/bin/*.dll $D/bin/
+          cp src/ipe/lua/*.lua $D/lua/
+          cp artwork/icons.ipe artwork/ipe_logo.ipe artwork/ipe.iconset/icon_128x128.png $D/icons/
+          cp src/ipelets/lua/*.lua $D/ipelets/
+          cp styles/* $D/styles/
+          cp scripts/* $D/scripts/ || true
+          cp LICENSE.txt $D/
+          # Qt plugins (platform, styles, imageformats for SVG icons)
+          windeployqt6 --no-translations --no-system-d3d-compiler --no-opengl-sw \
+                       --dir $D/bin $D/bin/ipe.exe || \
+            windeployqt --no-translations --dir $D/bin $D/bin/ipe.exe
+          # All DLLs from MSYS2 that our binaries (and the Qt plugins) need
+          for pass in 1 2 3; do
+            find $D/bin -name '*.exe' -o -name '*.dll' | while read f; do
+              ntldd -R "$f" 2>/dev/null | grep -i -o -E '[A-Z]:\\[^ ]*ucrt64\\bin\\[^ ]*\.dll' || true
+            done | sort -u | while read w; do
+              u=$(cygpath -u "$w"); b=$(basename "$u")
+              [ -f "$D/bin/$b" ] || cp "$u" "$D/bin/"
+            done
+          done
+          ls -la $D/bin | head -80
+          du -sh $D
+
+      - name: Smoke test (start Ipe and take a screenshot)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath "dist\ipe-modern\bin\ipe.exe" -PassThru
+          Start-Sleep -Seconds 15
+          Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save("smoke-test.png")
+          if ($p.HasExited) { Write-Error "Ipe exited early with code $($p.ExitCode)"; exit 1 }
+          Write-Host "Ipe is running (pid $($p.Id))"
+          Stop-Process -Id $p.Id -Force
+
+      - name: Upload smoke-test screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test
+          path: smoke-test.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Zip
+        run: |
+          cd dist && zip -qr ../ipe-modern-windows-x64.zip ipe-modern
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipe-modern-windows-x64
+          path: ipe-modern-windows-x64.zip
+          retention-days: 30
+
+      - name: Publish the Windows build as a release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Windows build ${{ github.run_number }}
+          body: |
+            Ipe with the modern interface, built automatically from commit ${{ github.sha }}.
+            Download **ipe-modern-windows-x64.zip**, unzip it anywhere and run `ipe-modern\bin\ipe.exe`
+            (or `ipe-modern\Ipe.bat`). For text with LaTeX, MiKTeX or TeX Live must be installed.
+          files: ipe-modern-windows-x64.zip
+          make_latest: true

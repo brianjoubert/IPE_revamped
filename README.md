@@ -12,6 +12,12 @@ by Otfried Cheong, with a modernized Qt 6 interface:
 
 Ipe's file format, style sheets and ipelets are unchanged.
 
+## Download (Windows)
+
+Every push to `main` builds Ipe for Windows automatically.  Get the latest build from the
+**Releases** section on the right of the repository page (file `ipe-modern-windows-x64.zip`),
+unzip it anywhere and run `ipe-modern\bin\ipe.exe`.
+
 ## Building on Windows
 
 Double-click `tools/windows/BUILD.bat`. It installs MSYS2 if needed (into `C:\msys64`),
