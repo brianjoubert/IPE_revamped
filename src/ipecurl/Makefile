@@ -13,6 +13,12 @@ LIBS += -L$(buildlib) -lipe $(CURL_LIBS)
 all: $(TARGET)
 
 win_sources   = ipecurl_win.cpp
+# the Qt frontend on Windows uses the same Windows implementation
+ifdef WIN32
+ifdef IPEUI_QT
+qt_sources    = ipecurl_win.cpp
+endif
+endif
 cocoa_sources = ipecurl_osx.cpp
 
 ifndef WIN32
