@@ -1,3 +1,34 @@
+# Ipe — modern interface (IPE_revamped)
+
+This is a fork of the [Ipe extensible drawing editor](https://github.com/otfried/ipe)
+by Otfried Cheong, with a modernized Qt 6 interface:
+
+- **Dark and light themes** (or follow the system), switchable at any time
+- **Tool rail** on the left with grouped tools, **inspector** (Properties, Layers) on the right
+- **Command palette** (`Ctrl+Shift+K`): search every command and ipelet
+- **Gradient editor** (`Ctrl+Shift+G`, menu *Gradient*): linear and radial gradients,
+  color stops with per-stop opacity, presets, object transparency, fitted to each shape
+- Native **Windows build** of the Qt version (MSYS2)
+
+Ipe's file format, style sheets and ipelets are unchanged.
+
+## Building on Windows
+
+Double-click `tools/windows/BUILD.bat`. It installs MSYS2 if needed (into `C:\msys64`),
+compiles Ipe and puts the program in `dist/ipe-modern` (plus a zip).  The log is written to
+`tools/windows/build-log.txt`.
+
+Pushing to GitHub also builds a Windows zip automatically (see the *Actions* tab).
+
+## Building on Linux
+
+```
+cd src
+make IPEUI=QT IPEPREFIX=/usr/local LUA_PACKAGE=lua5.4
+```
+
+---
+
 ## Ipe extensible drawing editor
 
 ### Introduction

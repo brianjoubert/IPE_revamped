@@ -2,7 +2,7 @@ name: Build Ipe (modern Qt UI) for Windows
 on:
   workflow_dispatch:
   push:
-    branches: [ master, modern-ui ]
+    branches: [ main ]
     paths:
       - '.github/workflows/windows-qt.yml'
       - 'src/**'

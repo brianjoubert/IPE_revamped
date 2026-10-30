@@ -26,3 +26,6 @@ out/
 
 /src/**/*.ipe
 /src/**/*.pdf
+
+# local Windows build
+/tools/windows/build-log.txt
