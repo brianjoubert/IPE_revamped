@@ -74,6 +74,7 @@ struct Spec {
     double cx = 0.5, cy = 0.5, radius = 1.0, fx = 0.0, fy = 0.0;
     bool extend = true;
     bool stroke = false;
+    double opacity = 1.0; // opacity of the whole object (fill or outline)
     std::vector<Stop> stops;
 };
 
@@ -168,6 +169,7 @@ protected:
 	p.save();
 	p.setClipPath(path);
 	drawChecker(p, r, 8);
+	p.setOpacity(std::clamp(iSpec->opacity, 0.0, 1.0));
 	p.fillPath(path, gradientBrush(*iSpec, r));
 	p.restore();
 	QPen pen(palette().color(QPalette::Mid), 1.0);
@@ -427,6 +429,7 @@ Spec readSpec(lua_State * L, int t) {
     s.radius = getNumberField(L, t, "radius", 1.0);
     s.fx = getNumberField(L, t, "fx", 0.0);
     s.fy = getNumberField(L, t, "fy", 0.0);
+    s.opacity = std::clamp(getNumberField(L, t, "opacity", 1.0), 0.0, 1.0);
     lua_getfield(L, t, "extend");
     s.extend = lua_isnil(L, -1) ? true : lua_toboolean(L, -1);
     lua_pop(L, 1);
@@ -484,6 +487,7 @@ void pushSpec(lua_State * L, const Spec & s) {
     setNumberField(L, "radius", s.radius);
     setNumberField(L, "fx", s.fx);
     setNumberField(L, "fy", s.fy);
+    setNumberField(L, "opacity", s.opacity);
     lua_pushboolean(L, s.extend);
     lua_setfield(L, -2, "extend");
     lua_pushstring(L, s.stroke ? "stroke" : "fill");
@@ -738,6 +742,26 @@ int ipeui_gradientDialog(lua_State * L) {
     geoLo->addWidget(geoStack);
     right->addWidget(geoBox);
 
+    // transparency of the whole object
+    auto * opacityRow = new QHBoxLayout;
+    auto * objOpacityLabel = new QLabel("Object opacity");
+    objOpacityLabel->setToolTip("Transparency of the whole shape, on top of the opacity of\n"
+				"the individual colors.  This is Ipe's normal opacity attribute.");
+    auto * objOpacity = new QSlider(Qt::Horizontal);
+    objOpacity->setRange(0, 100);
+    auto * objOpacityValue = new QLabel;
+    objOpacityValue->setMinimumWidth(40);
+    opacityRow->addWidget(objOpacityLabel);
+    opacityRow->addWidget(objOpacity, 1);
+    opacityRow->addWidget(objOpacityValue);
+    right->addLayout(opacityRow);
+    QObject::connect(objOpacity, &QSlider::valueChanged, &dlg, [&](int v) {
+	objOpacityValue->setText(QString("%1 %").arg(v));
+	if (updating) return;
+	spec.opacity = v / 100.0;
+	changed();
+    });
+
     // options
     auto * extendCheck = new QCheckBox("Extend colors beyond the ends");
     right->addWidget(extendCheck);
@@ -772,6 +796,8 @@ int ipeui_gradientDialog(lua_State * L) {
 	fxSpin->setValue(int(std::lround(spec.fx * 100)));
 	fySpin->setValue(int(std::lround(spec.fy * 100)));
 	extendCheck->setChecked(spec.extend);
+	objOpacity->setValue(int(std::lround(spec.opacity * 100)));
+	objOpacityValue->setText(QString("%1 %").arg(objOpacity->value()));
 	(spec.stroke ? strokeRadio : fillRadio)->setChecked(true);
 	updating = false;
     };

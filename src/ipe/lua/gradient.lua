@@ -165,6 +165,28 @@ local function is_closed(obj)
   return true
 end
 
+-- absolute value of an opacity attribute (symbolic name or "opaque")
+local function absolute_opacity(sheets, name)
+  if type(name) == "number" then return name end
+  if not name or name == "opaque" or name == "normal" then return 1 end
+  local v = sheets:find("opacity", name)
+  if type(v) == "number" then return v end
+  return 1
+end
+
+-- symbolic opacity with the given value: reuse one from the style sheets,
+-- or define a new one in the gradient sheet
+local function opacity_name(sheets, gsheet, value)
+  if value >= 0.9995 then return "opaque" end
+  for _, n in ipairs(sheets:allNames("opacity")) do
+    local v = sheets:find("opacity", n)
+    if type(v) == "number" and math.abs(v - value) < 0.0005 then return n end
+  end
+  local name = fmt(value * 100) .. "%"
+  gsheet:add("opacity", name, value)
+  return name
+end
+
 -- Selected path objects on the current page (indices).
 -- Open polylines are only used if they are already filled, or for outlines.
 function MODEL:gradient_targets(for_stroke)
@@ -213,9 +235,13 @@ function MODEL:apply_gradient_spec(spec, label)
     self:warning("Could not create the gradient", msg)
     return
   end
+  local opname = nil
+  if spec.opacity then opname = opacity_name(sheets, gsheet, spec.opacity) end
+  local opprop = (spec.target == "stroke") and "strokeopacity" or "opacity"
   for _, i in ipairs(targets) do
     local obj = final[i]
     gsheet:addFrom(tmp, "gradient", names[i])
+    if opname then final:setAttribute(i, opprop, opname) end
     local mode = obj:get("pathmode")
     if spec.target == "stroke" then
       final:setAttribute(i, "strokegradient", names[i])
@@ -316,9 +342,20 @@ function MODEL:action_gradient_edit()
   end
   spec.target = target
   spec.allow_stroke = true
+  -- keep the object's current transparency
+  spec.opacity = absolute_opacity(sheets,
+				  obj:get(target == "stroke" and "strokeopacity" or "opacity"))
 
+  local initial_opacity = spec.opacity
   local result = ipeui.gradientDialog(self.ui:win(), spec)
-  if result then self:apply_gradient_spec(result, "set gradient") end
+  if result then
+    -- only touch the opacity if it was changed in the dialog, so that
+    -- every selected object keeps its own transparency
+    if math.abs((result.opacity or 1) - initial_opacity) < 0.005 then
+      result.opacity = nil
+    end
+    self:apply_gradient_spec(result, "set gradient")
+  end
 end
 
 function MODEL:action_gradient_apply_last()
@@ -351,6 +388,7 @@ function MODEL:action_gradient_refit()
   -- all selected objects get the primary object's gradient, fitted to their own shape
   local spec = spec_from_gradient(g, local_bbox(p[prim]))
   spec.target = "fill"
+  -- spec.opacity stays nil: each object keeps its own opacity
   self:apply_gradient_spec(spec, "fit gradient to shape")
 end
 
