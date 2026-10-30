@@ -1,0 +1,146 @@
+# --------------------------------------------------------------------
+# Makefile for Ipe
+# --------------------------------------------------------------------
+
+OBJDIR = $(BUILDDIR)/obj/ipe
+include ../common.mak
+
+TARGET = $(call exe_target,ipe)
+
+CPPFLAGS += -I../include -I../ipecanvas -I../ipecairo -I../ipelua \
+	-I../ipeui -I../spiro \
+	$(LUA_CFLAGS) $(UI_CFLAGS) $(CAIRO_CFLAGS) $(ZLIB_CFLAGS)
+LIBS += -L$(buildlib) -lipecanvas -lipecairo -lipelua -lipe -lipeui \
+	$(LUA_LIBS) $(UI_LIBS) $(CAIRO_LIBS) $(ZLIB_LIBS) $(DL_LIBS)
+
+MAKE_ASSETS =
+WASM_LIBS =
+
+ifdef IPEWASM
+TARGET = ../ipe-web/src/ipe/ipe.js
+# create js/wasm files suitable for a browser
+LDFLAGS += -sMODULARIZE=1 -sENVIRONMENT=web -sEXPORT_ES6=1 -sALLOW_MEMORY_GROWTH=1
+LDFLAGS += -sEXPORTED_RUNTIME_METHODS=ENV,FS,IDBFS,stringToNewUTF8,Emval
+LIBS += $(FREETYPE_LIBS) $(CAIRO_LIBS) $(PNG_LIBS) $(JPEG_LIBS) $(GSL_LIBS) $(SPIRO_LIBS)
+LDFLAGS += -lembind -lidbfs.js --embed-file opt
+MAKE_ASSETS = bash mkipewebassets.sh
+WASM_LIBS = lua/model.lua lua/actions.lua lua/main.lua
+endif
+
+all: $(TARGET)
+
+sources	= tools.cpp appui.cpp uilua.cpp
+luasources = lua/main.lua lua/model.lua lua/actions.lua \
+	lua/tools.lua lua/properties.lua lua/editpath.lua \
+	lua/prefs.lua lua/shortcuts.lua lua/mouse.lua
+qt_sources = main_qt.cpp appui_qt.cpp controls_qt.cpp 
+moc_headers = appui_qt.h controls_qt.h waitdlg_qt.h
+win_sources = main_win.cpp appui_win.cpp pathview_win.cpp pagesorter_win.cpp
+gtk_sources = main_gtk.cpp appui_gtk.cpp controls_gtk.cpp
+cocoa_sources = main_cocoa.cpp appui_cocoa.cpp controls_cocoa.cpp \
+	pagesorter_cocoa.cpp
+js_sources = main_js.cpp appui_js.cpp controls_js.cpp
+
+ifdef WIN32
+CXXFLAGS += -mwindows
+LDFLAGS  += -mwindows
+
+resource = $(OBJDIR)/res.o
+
+$(resource): ipe.rc
+	$(WINDRES) -i ipe.rc -o $@ --include-dir=.
+
+else
+resource = 
+endif
+
+ifdef IPEUI_COCOA
+
+nib = $(RESOURCEDIR)/mainmenu.nib
+
+$(nib): mainmenu.xib
+	mkdir -p $(RESOURCEDIR)
+	ibtool --compile $(nib) mainmenu.xib
+
+else
+nib = 
+endif
+
+luastamp = $(OBJDIR)/luacheck.stamp
+
+$(TARGET): $(objects) $(resource) $(nib) Makefile $(WASM_LIBS) | $(luastamp)
+	$(MAKE_BINDIR)
+	$(MAKE_ASSETS)
+	$(CXX) $(LDFLAGS) -o $@ $(objects) $(resource) $(LIBS)
+
+$(luastamp): $(luasources)
+	$(check_lua) $?
+	@mkdir -p $(dir $@)
+	@touch $@
+
+clean:
+	@-rm -f $(objects) $(resource) $(TARGET) $(DEPEND) $(luastamp)
+
+$(DEPEND): Makefile
+	$(MAKE_DEPEND)
+
+-include $(DEPEND)
+
+ifdef IPEAPP
+
+app:
+	$(INSTALL_DIR) $(RESOURCEDIR)/scripts
+	$(INSTALL_DIR) $(RESOURCEDIR)/lua
+	$(INSTALL_DIR) $(RESOURCEDIR)/styles
+	$(INSTALL_DIR) $(RESOURCEDIR)/icons
+	$(INSTALL_SCRIPTS) ../../scripts/* $(RESOURCEDIR)/scripts
+	$(INSTALL_FILES) lua/*.lua $(RESOURCEDIR)/lua
+	$(INSTALL_FILES) ../../styles/* $(RESOURCEDIR)/styles
+	$(INSTALL_FILES) Info.plist $(BUNDLEDIR)
+	$(INSTALL_FILES) $(BUILDDIR)/ipe.icns $(RESOURCEDIR)
+	$(INSTALL_FILES) ../../artwork/icons.ipe $(RESOURCEDIR)/icons
+
+dependencies:
+	$(INSTALL_PROGRAMS) $(IPEDEPS)/lib/libpng16.16.dylib $(buildlib)
+	$(INSTALL_PROGRAMS) $(IPEDEPS)/lib/libpixman-1.0.dylib $(buildlib)
+	$(INSTALL_PROGRAMS) $(IPEDEPS)/lib/libfreetype.6.dylib $(buildlib)
+	$(INSTALL_PROGRAMS) $(IPEDEPS)/lib/libcairo.2.dylib $(buildlib)
+	$(INSTALL_PROGRAMS) $(IPEDEPS)/lib/liblua54.dylib $(buildlib)
+	mkdir -p $(BUNDLEDIR)/Headers
+	$(INSTALL_FILES) ../include/*.h $(BUNDLEDIR)/Headers
+
+endif
+
+install: $(TARGET)
+	$(INSTALL_DIR) $(INSTALL_ROOT)$(IPEBINDIR) 
+	$(INSTALL_DIR) $(INSTALL_ROOT)$(IPEMANDIR) 
+
+	$(INSTALL_DIR) $(INSTALL_ROOT)$(IPELUADIR) 
+	$(INSTALL_DIR) $(INSTALL_ROOT)$(IPESTYLEDIR) 
+	$(INSTALL_DIR) $(INSTALL_ROOT)$(IPESCRIPTDIR) 
+	$(INSTALL_DIR) $(INSTALL_ROOT)$(IPEICONDIR)
+	$(INSTALL_PROGRAMS) $(TARGET) $(INSTALL_ROOT)$(IPEBINDIR)
+	$(INSTALL_SCRIPTS) ../../scripts/* $(INSTALL_ROOT)$(IPESCRIPTDIR)
+	$(INSTALL_FILES) ../../man/*.1 $(INSTALL_ROOT)$(IPEMANDIR) 
+	$(INSTALL_FILES) lua/*.lua $(INSTALL_ROOT)$(IPELUADIR)
+	$(INSTALL_FILES) ../../styles/* $(INSTALL_ROOT)$(IPESTYLEDIR)
+	$(INSTALL_FILES) ../../artwork/icons.ipe $(INSTALL_ROOT)$(IPEICONDIR)
+	$(INSTALL_FILES) ../../artwork/ipe_logo.ipe $(INSTALL_ROOT)$(IPEICONDIR)
+	$(INSTALL_FILES) ../../artwork/ipe.iconset/icon_128x128.png $(INSTALL_ROOT)$(IPEICONDIR)
+	desktop-file-install --dir $(INSTALL_ROOT)$(IPEAPPLICATIONS) \
+		--set-key=Exec --set-value="$(IPEBINDIR)/ipe %F" \
+		../../doc/org.otfried.Ipe.desktop
+	$(INSTALL_DIR) $(INSTALL_ROOT)$(IPEAPPLICATIONICONS)/hicolor/16x16/apps
+	$(INSTALL_FILES) ../../artwork/hicolor/16x16/apps/org.otfried.Ipe.png \
+		$(INSTALL_ROOT)$(IPEAPPLICATIONICONS)/hicolor/16x16/apps
+	$(INSTALL_DIR) $(INSTALL_ROOT)$(IPEAPPLICATIONICONS)/hicolor/48x48/apps
+	$(INSTALL_FILES) ../../artwork/hicolor/48x48/apps/org.otfried.Ipe.png \
+		$(INSTALL_ROOT)$(IPEAPPLICATIONICONS)/hicolor/48x48/apps
+	$(INSTALL_DIR) $(INSTALL_ROOT)$(IPEAPPLICATIONICONS)/hicolor/256x256/apps
+	$(INSTALL_FILES) ../../artwork/hicolor/256x256/apps/org.otfried.Ipe.png \
+		$(INSTALL_ROOT)$(IPEAPPLICATIONICONS)/hicolor/256x256/apps
+	$(INSTALL_DIR) $(INSTALL_ROOT)$(IPEAPPLICATIONICONS)/hicolor/scalable/apps
+	$(INSTALL_FILES) ../../artwork/hicolor/scalable/apps/org.otfried.Ipe.svg \
+		$(INSTALL_ROOT)$(IPEAPPLICATIONICONS)/hicolor/scalable/apps
+
+# --------------------------------------------------------------------
