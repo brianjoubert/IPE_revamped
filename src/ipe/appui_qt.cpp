@@ -462,6 +462,16 @@ AppUi::AppUi(lua_State * L0, int model, Qt::WindowFlags f)
     iAppTools->addWidget(iThemeButton);
     iCommandPalette = new CommandPalette(this);
 
+    // ---- Gradient menu
+    QMenu * gradientMenu = new QMenu("&Gradient", this);
+    menuBar()->insertMenu(iMenu[ESnapMenu]->menuAction(), gradientMenu);
+    addItem(gradientMenu, "Gradient editor…", "gradient_edit");
+    addItem(gradientMenu, "Apply last gradient", "gradient_apply_last");
+    gradientMenu->addSeparator();
+    addItem(gradientMenu, "Fit gradient to shape", "gradient_refit");
+    addItem(gradientMenu, "Remove gradient", "gradient_remove");
+    iGradientMenu = gradientMenu;
+
     QMenu * themeMenu = new QMenu("&Theme", this);
     QActionGroup * themeGroup = new QActionGroup(this);
     themeGroup->setExclusive(true);
@@ -631,7 +641,16 @@ AppUi::AppUi(lua_State * L0, int model, Qt::WindowFlags f)
     hol->addStretch(1);
     hol->addWidget(iPageMarked);
     hol->addWidget(iPageNumber);
-    lo->addLayout(hol, EUiOpacity + 2, 0, 1, -1);
+    iGradientButton = new QToolButton();
+    iGradientButton->setText("Gradient…");
+    iGradientButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    iGradientButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    iGradientButton->setFocusPolicy(Qt::NoFocus);
+    iGradientButton->setObjectName("GradientButton");
+    connect(iGradientButton, &QToolButton::clicked, this,
+	    [this]() { action("gradient_edit"); });
+    lo->addWidget(iGradientButton, EUiOpacity + 2, 0, 1, -1);
+    lo->addLayout(hol, EUiOpacity + 3, 0, 1, -1);
 
     iPageNotes = new QTextEdit();
     iPageNotes->setAcceptRichText(false);
@@ -695,6 +714,8 @@ void AppUi::applyTheme() {
     iButton[EUiTextSize]->setIcon(prefsIcon("mode_label"));
     iButton[EUiSymbolSize]->setIcon(prefsIcon("mode_marks"));
     iPaletteButton->setIcon(ipetheme::glyph("search"));
+    iGradientButton->setIcon(ipetheme::glyph("gradient"));
+    findAction("gradient_edit")->setIcon(ipetheme::glyph("gradient"));
     switch (ipetheme::mode()) {
     case ipetheme::Mode::Light: iThemeButton->setIcon(ipetheme::glyph("sun")); break;
     case ipetheme::Mode::Dark: iThemeButton->setIcon(ipetheme::glyph("moon")); break;
@@ -963,6 +984,7 @@ void AppUi::setActionsEnabled(bool mode) {
     enableActions(iMenu[EViewMenu], mode);
     enableActions(iMenu[EPageMenu], mode);
     enableActions(iMenu[EIpeletMenu], mode);
+    enableActions(iGradientMenu, mode);
 
     iModeActionGroup->setEnabled(mode);
     iPropertiesTools->setEnabled(mode);

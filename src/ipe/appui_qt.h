@@ -182,6 +182,8 @@ private:
     QToolBar * iAppTools;
     QToolButton * iPaletteButton;
     QToolButton * iThemeButton;
+    QToolButton * iGradientButton;
+    QMenu * iGradientMenu;
     CommandPalette * iCommandPalette;
     std::map<String, QToolButton *> iFlyouts;
     String iModeName;

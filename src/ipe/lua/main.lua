@@ -35,6 +35,7 @@ require "actions"
 require "tools"
 require "editpath"
 require "properties"
+require "gradient"
 require "shortcuts"
 require "mouse"
 

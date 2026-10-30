@@ -467,6 +467,8 @@ static int push_gradient(lua_State * L, const Gradient & g) {
 	lua_setfield(L, -2, "offset");
 	push_color(L, g.iStops[i].color);
 	lua_setfield(L, -2, "color");
+	lua_pushnumber(L, g.iStops[i].opacity);
+	lua_setfield(L, -2, "opacity");
 	lua_rawseti(L, -2, i + 1);
     }
     lua_setfield(L, -2, "stops");

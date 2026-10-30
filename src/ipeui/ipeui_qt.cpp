@@ -899,6 +899,9 @@ static int ipeui_startBrowserQt(lua_State * L) {
 }
 #endif
 
+// in ipeui_gradient_qt.cpp
+int ipeui_gradientDialog(lua_State * L);
+
 static const struct luaL_Reg ipeui_functions[] = {
     {"Dialog", dialog_constructor},
     {"Menu", menu_constructor},
@@ -910,6 +913,7 @@ static const struct luaL_Reg ipeui_functions[] = {
 #if defined(WIN32) && !defined(__EMSCRIPTEN__)
     {"startBrowser", ipeui_startBrowserQt},
 #endif
+    {"gradientDialog", ipeui_gradientDialog},
     {nullptr, nullptr}};
 
 // --------------------------------------------------------------------

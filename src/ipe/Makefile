@@ -32,7 +32,7 @@ all: $(TARGET)
 sources	= tools.cpp appui.cpp uilua.cpp
 luasources = lua/main.lua lua/model.lua lua/actions.lua \
 	lua/tools.lua lua/properties.lua lua/editpath.lua \
-	lua/prefs.lua lua/shortcuts.lua lua/mouse.lua
+	lua/prefs.lua lua/shortcuts.lua lua/mouse.lua lua/gradient.lua
 qt_sources = main_qt.cpp appui_qt.cpp controls_qt.cpp theme_qt.cpp \
 	commandpalette_qt.cpp 
 moc_headers = appui_qt.h controls_qt.h waitdlg_qt.h

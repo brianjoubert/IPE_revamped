@@ -20,6 +20,7 @@
 #include <QFont>
 #include <QStringList>
 #include <QGuiApplication>
+#include <QLinearGradient>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPalette>
@@ -153,6 +154,12 @@ static QString writeAssets(const Colors & c) {
 		  "stroke='%1' stroke-width='1.8' stroke-linecap='round' "
 		  "stroke-linejoin='round'/></svg>")
 	      .arg(c.accent.name()));
+    write("up" + suffix + ".svg",
+	  QString("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' "
+		  "viewBox='0 0 10 10'><path d='M2 6.5 L5 3.5 L8 6.5' fill='none' "
+		  "stroke='%1' stroke-width='1.5' stroke-linecap='round' "
+		  "stroke-linejoin='round'/></svg>")
+	      .arg(col));
     write("close" + suffix + ".svg",
 	  QString("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' "
 		  "viewBox='0 0 10 10'><path d='M2.5 2.5 L7.5 7.5 M7.5 2.5 L2.5 7.5' "
@@ -212,6 +219,18 @@ QToolButton:pressed { background: @pressed; }
 QToolButton:checked { background: @pressed; border: 1px solid @checkedBorder; }
 QToolButton:disabled { color: @mutedDisabled; }
 QToolButton#qt_toolbar_ext_button { padding: 0px; }
+QToolButton#GradientButton { background: @raised; border: 1px solid @border;
+    border-radius: 6px; padding: 4px 8px; }
+QToolButton#GradientButton:hover { border-color: @accent; }
+QGroupBox { border: 1px solid @border; border-radius: 8px; margin-top: 14px;
+            padding: 10px 8px 8px 8px; color: @textMuted; }
+QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }
+QSlider::groove:horizontal { height: 4px; background: @border; border-radius: 2px; }
+QSlider::handle:horizontal { background: @accent; width: 14px; height: 14px;
+    margin: -5px 0; border-radius: 7px; }
+QRadioButton::indicator { width: 14px; height: 14px; border-radius: 7px;
+    border: 1px solid @border; background: @base; }
+QRadioButton::indicator:checked { background: @accent; border: 3px solid @base; }
 QToolButton#PaletteButton { background: @base; border: 1px solid @border;
     color: @textMuted; padding: 3px 10px 3px 6px; border-radius: 7px; }
 QToolButton#PaletteButton:hover { border-color: @accent; color: @text; }
@@ -233,6 +252,15 @@ QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox {
 QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QSpinBox:focus,
 QDoubleSpinBox:focus { border-color: @accent; }
 
+QSpinBox, QDoubleSpinBox { padding-right: 18px; }
+QSpinBox::up-button, QDoubleSpinBox::up-button { subcontrol-origin: border;
+    subcontrol-position: top right; width: 16px; border: none; background: transparent; }
+QSpinBox::down-button, QDoubleSpinBox::down-button { subcontrol-origin: border;
+    subcontrol-position: bottom right; width: 16px; border: none; background: transparent; }
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow { image: url(@dir/up@suffix.svg);
+    width: 8px; height: 8px; }
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow { image: url(@dir/down@suffix.svg);
+    width: 8px; height: 8px; }
 QPushButton { background: @raised; color: @text; border: 1px solid @border;
               border-radius: 6px; padding: 5px 14px; min-width: 60px; }
 QPushButton:hover { border-color: @accent; }
@@ -411,6 +439,14 @@ QIcon glyph(const QString & name) {
 	QPainterPath cut;
 	cut.addEllipse(QPointF(44, 22), 17, 17);
 	p.drawPath(outer.subtracted(cut));
+    } else if (name == "gradient") {
+	QLinearGradient lg(10, 0, 54, 0);
+	lg.setColorAt(0, QColor("#ff5e62"));
+	lg.setColorAt(0.5, QColor("#ff9966"));
+	lg.setColorAt(1, QColor("#4c8dff"));
+	p.setPen(QPen(sColors.text, 3.0));
+	p.setBrush(lg);
+	p.drawRoundedRect(QRectF(8, 14, 48, 36), 8, 8);
     } else if (name == "system") {
 	p.drawEllipse(QPointF(32, 32), 21, 21);
 	QPainterPath half;

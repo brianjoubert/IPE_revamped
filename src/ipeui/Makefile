@@ -24,7 +24,7 @@ all: $(TARGET)
 
 sources = ipeui_common.cpp
 cocoa_sources = ipeui_cocoa.cpp
-qt_sources = ipeui_qt.cpp
+qt_sources = ipeui_qt.cpp ipeui_gradient_qt.cpp
 moc_headers = ipeui_qt.h
 win_sources = ipeui_win.cpp
 gtk_sources = ipeui_gtk.cpp
