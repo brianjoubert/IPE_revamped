@@ -23,11 +23,11 @@ echo Using git: %GIT%
 set "G="%GIT%" -c safe.directory=* -c core.autocrlf=false -c "user.name=Fabien Lafont" -c "user.email=lafont.fabien@gmail.com""
 
 %G% fetch ipe-revamped.bundle main || goto :fail
-%G% merge --no-edit -X theirs -m "Update from Claude: fix the Windows build workflow" FETCH_HEAD || goto :fail
+%G% merge --no-edit -X theirs -m "Update from Claude: online LaTeX on Windows" FETCH_HEAD || goto :fail
 
 echo.
 echo Done! Latest commits:
-%G% log --oneline -5
+%G% --no-pager log --oneline -5
 del ipe-revamped.bundle
 echo.
 echo Next: in GitHub Desktop click "Push origin".
