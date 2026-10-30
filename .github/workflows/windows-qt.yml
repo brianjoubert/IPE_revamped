@@ -86,10 +86,11 @@ jobs:
             windeployqt --no-translations --dir $D/bin $D/bin/ipe.exe
           # All DLLs from MSYS2 that our binaries (and the Qt plugins) need
           for pass in 1 2 3; do
-            find $D/bin -name '*.exe' -o -name '*.dll' | while read f; do
+            find $D/bin \( -name '*.exe' -o -name '*.dll' \) | while read -r f; do
               ntldd -R "$f" 2>/dev/null | grep -i -o -E '[A-Z]:\\[^ ]*ucrt64\\bin\\[^ ]*\.dll' || true
-            done | sort -u | while read w; do
+            done | sort -u | while read -r w; do
               u=$(cygpath -u "$w"); b=$(basename "$u")
+              [ -f "$u" ] || { echo "skipping $w"; continue; }
               [ -f "$D/bin/$b" ] || cp "$u" "$D/bin/"
             done
           done
